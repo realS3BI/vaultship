@@ -25,12 +25,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
@@ -44,6 +44,9 @@ jobs:
             echo "Tag version $VER does not match package.json version $PKG"
             exit 1
           fi
+
+      - name: Validate package contents
+        run: npm pack --dry-run
 
       - name: Publish to npm
         run: pnpm publish --no-git-checks --provenance

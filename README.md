@@ -89,7 +89,7 @@ pnpm build
 
 The Vaultship server image is built and pushed to [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) automatically:
 
-- **On version tag** (e.g. `1.0.0` or `v1.0.0`): image tagged with that version, `<major>.<minor>`, and `latest`
+- **On version tag** (e.g. `v1.0.0`): image tagged with that version, `<major>.<minor>`, and `latest`
 
 No secrets required; the workflow uses `GITHUB_TOKEN`. Make the image public under repo **Settings → Packages → Package visibility** if needed.
 
@@ -100,9 +100,18 @@ docker pull ghcr.io/<owner>/vaultship/server:latest
 docker run -p 8090:8090 ghcr.io/<owner>/vaultship/server:latest
 ```
 
+### Release workflow behavior
+
+`vaultship init` installs `.github/workflows/release.yml` for application repositories.
+
+- The release branch must be named `release/vX.Y.Z` and produces tag `vX.Y.Z`.
+- Docker build/push in that workflow is **opt-in** via repository variable `VAULTSHIP_DOCKER_RELEASE=true`.
+- If `VAULTSHIP_DOCKER_RELEASE` is not enabled (or no root `Dockerfile` exists), Docker steps are skipped.
+- Non-Docker repositories can use the release workflow without modification.
+
 ### npm package
 
-`vaultship` is published to npm when a **version tag** is pushed, using [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC). No long-lived tokens are required.
+`vaultship` is published to npm when a **version tag** (`vX.Y.Z`) is pushed, using [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC). No long-lived tokens are required.
 
 **One-time setup:** On [npm](https://www.npmjs.com/package/vaultship/access), add a Trusted Publisher with this repo and workflow filename `npm-publish.yml` (the workflow lives at `.github/workflows/npm-publish.yml`). Once configured, pushes of version tags trigger the workflow and npm accepts the publish via OIDC.
 
@@ -112,7 +121,7 @@ To release a new version:
 2. Push a tag that matches the new version:
 
    ```bash
-   git tag v1.0.0   # or 1.0.0
+   git tag v1.0.0
    git push origin v1.0.0
    ```
 

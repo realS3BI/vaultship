@@ -20,9 +20,9 @@
     "generate-api-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     "prepublishOnly": "pnpm build",
     "prepare": "husky",
-    "release": "npx vaultship release",
-    "release:minor": "npx vaultship release --minor",
-    "release:major": "npx vaultship release --major",
+    "release": "pnpm build && node dist/cli/index.js release",
+    "release:minor": "pnpm build && node dist/cli/index.js release --minor",
+    "release:major": "pnpm build && node dist/cli/index.js release --major",
     "env:push": "npx vaultship env push",
     "env:pull": "npx vaultship env pull"
   },
@@ -44,8 +44,7 @@
     "@types/node": "^25.3.3",
     "@types/prompts": "^2.4.9",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3",
-    "vaultship": "1.1.11"
+    "typescript": "^5.7.3"
   },
   "engines": {
     "node": ">=20"
