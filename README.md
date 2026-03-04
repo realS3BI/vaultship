@@ -108,11 +108,12 @@ docker run -p 8090:8090 ghcr.io/<owner>/vaultship/server:latest
 - To trigger downstream workflows on tag push (e.g. npm publish), set repository secret `VAULTSHIP_RELEASE_TOKEN` (PAT with repo write access). Without it, the workflow falls back to `GITHUB_TOKEN` and tag-triggered workflows may be skipped.
 - GitHub release creation is always enabled.
 - Optional deploy targets are configured interactively during `vaultship init` and stored in `.vaultshiprc.json`:
-  - Docker publish to GHCR
+  - Docker publish to GHCR (with configurable context path + image name)
   - npm publish via Trusted Publisher (OIDC)
   - Convex deploy
   - Webhook trigger
 - Re-running `vaultship init` reopens those settings with existing values as defaults and regenerates the workflow.
+- Setup checklist for required secrets/variables: `docs/release-setup.md`.
 
 ### npm package
 

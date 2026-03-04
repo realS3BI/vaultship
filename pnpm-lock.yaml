@@ -57,6 +57,9 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
+      vaultship:
+        specifier: file:../vaultship/dist/cli
+        version: cli@file:dist/cli
 
 packages:
 
@@ -656,6 +659,9 @@ packages:
   cli-spinners@3.4.0:
     resolution: {integrity: sha512-bXfOC4QcT1tKXGorxL3wbJm6XJPDqEnij2gQ2m7ESQuE+/z9YFIWnl/5RpTiKWbMq3EVKR4fRLJGn6DVfu0mpw==}
     engines: {node: '>=18.20'}
+
+  cli@file:dist/cli:
+    resolution: {directory: dist/cli, type: directory}
 
   cliui@8.0.1:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
@@ -1827,6 +1833,8 @@ snapshots:
       restore-cursor: 5.1.0
 
   cli-spinners@3.4.0: {}
+
+  cli@file:dist/cli: {}
 
   cliui@8.0.1:
     dependencies:

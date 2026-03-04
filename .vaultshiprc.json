@@ -1,4 +1,11 @@
 {
   "projectId": "40a49030-bcaf-4596-a49c-fca0b13e16fb",
-  "convexDeploy": false
+  "releaseTargets": {
+    "docker": true,
+    "dockerContext": "server",
+    "dockerImage": "ghcr.io/reals3bi/vaultship",
+    "npmTrustedPublisher": true,
+    "convex": false,
+    "webhook": true
+  }
 }

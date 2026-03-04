@@ -2,12 +2,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { ReleaseTargets } from "./project-config";
 
-function getDockerSteps(): string {
+function sanitizeDockerContext(contextPath: string): string {
+  const trimmed = contextPath.trim();
+
+  if (!trimmed || trimmed === ".") {
+    return ".";
+  }
+
+  return trimmed.replace(/^\.?\//, "").replace(/\\/g, "/");
+}
+
+function dockerfilePathFromContext(contextPath: string): string {
+  const normalized = sanitizeDockerContext(contextPath);
+  return normalized === "." ? "Dockerfile" : `${normalized}/Dockerfile`;
+}
+
+function getDockerSteps(releaseTargets: ReleaseTargets): string {
+  const dockerContext = sanitizeDockerContext(releaseTargets.dockerContext);
+  const dockerfilePath = dockerfilePathFromContext(dockerContext);
+  const dockerImage = releaseTargets.dockerImage || "${{ env.REGISTRY }}/${{ github.repository }}";
+
   return `
       - name: Validate Dockerfile
         run: |
-          if [ ! -f Dockerfile ]; then
-            echo "Docker deploy is enabled, but no Dockerfile was found in repository root."
+          if [ ! -f "${dockerfilePath}" ]; then
+            echo "Docker deploy is enabled, but no Dockerfile was found at ${dockerfilePath}."
             exit 1
           fi
 
@@ -25,7 +44,7 @@ function getDockerSteps(): string {
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: \${{ env.REGISTRY }}/\${{ github.repository }}
+          images: ${dockerImage}
           tags: |
             type=semver,pattern={{version}},value=\${{ steps.version.outputs.version }}
             type=raw,value=latest
@@ -33,7 +52,8 @@ function getDockerSteps(): string {
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${dockerContext}
+          file: ${dockerfilePath}
           push: true
           tags: \${{ steps.meta.outputs.tags }}
           labels: \${{ steps.meta.outputs.labels }}
@@ -110,7 +130,7 @@ function getWebhookSteps(): string {
 
 export function renderReleaseWorkflow(releaseTargets: ReleaseTargets): string {
   const idTokenPermission = releaseTargets.npmTrustedPublisher ? "  id-token: write\n" : "";
-  const dockerSteps = releaseTargets.docker ? getDockerSteps() : "";
+  const dockerSteps = releaseTargets.docker ? getDockerSteps(releaseTargets) : "";
   const npmSteps = releaseTargets.npmTrustedPublisher ? getNpmTrustedPublisherSteps() : "";
   const convexSteps = releaseTargets.convex ? getConvexSteps() : "";
   const webhookSteps = releaseTargets.webhook ? getWebhookSteps() : "";

@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 env:
   REGISTRY: ghcr.io
@@ -66,12 +67,17 @@ jobs:
           body: ${{ github.event.pull_request.body }}
           generate_release_notes: false
 
+      - name: Validate Dockerfile
+        run: |
+          if [ ! -f "server/Dockerfile" ]; then
+            echo "Docker deploy is enabled, but no Dockerfile was found at server/Dockerfile."
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
-        if: ${{ vars.VAULTSHIP_DOCKER_RELEASE == 'true' && hashFiles('Dockerfile') != '' }}
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: ${{ vars.VAULTSHIP_DOCKER_RELEASE == 'true' && hashFiles('Dockerfile') != '' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -80,39 +86,62 @@ jobs:
 
       - name: Docker meta
         id: meta
-        if: ${{ vars.VAULTSHIP_DOCKER_RELEASE == 'true' && hashFiles('Dockerfile') != '' }}
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          images: ghcr.io/reals3bi/vaultship
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
             type=raw,value=latest
 
       - name: Build and push Docker image
-        if: ${{ vars.VAULTSHIP_DOCKER_RELEASE == 'true' && hashFiles('Dockerfile') != '' }}
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: server
+          file: server/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Convex
-        if: ${{ vars.CONVEX_DEPLOY == 'true' }}
-        run: npx convex deploy
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish package to npm
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+
+          if [ "v$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag $TAG_VERSION does not match package.json version v$PACKAGE_VERSION."
+            exit 1
+          fi
+
+          pnpm publish --no-git-checks --provenance
 
       - name: Trigger Deployment Webhook
-        if: ${{ vars.DEPLOY_WEBHOOK_URL != '' }}
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ vars.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
         run: |
-          curl -X POST "${{ vars.DEPLOY_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_WEBHOOK_SECRET }}" \
-            -d '{"version":"${{ steps.version.outputs.version }}","repository":"${{ github.repository }}"}' \
-            --fail --silent --show-error
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo "Missing repository variable DEPLOY_WEBHOOK_URL."
+            exit 1
+          fi
+
+          curl -X POST "$DEPLOY_WEBHOOK_URL"             -H "Content-Type: application/json"             -H "Authorization: Bearer $DEPLOY_WEBHOOK_SECRET"             -d '{"version":"${{ steps.version.outputs.version }}","repository":"${{ github.repository }}"}'             --fail --silent --show-error
 
       - name: Cleanup release branch
         run: |

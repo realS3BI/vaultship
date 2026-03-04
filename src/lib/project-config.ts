@@ -4,6 +4,8 @@ import { UserError } from "./errors";
 
 export interface ReleaseTargets {
   docker: boolean;
+  dockerContext: string;
+  dockerImage: string;
   npmTrustedPublisher: boolean;
   convex: boolean;
   webhook: boolean;
@@ -29,6 +31,8 @@ export function getProjectConfigPath(cwd = process.cwd()): string {
 export function defaultReleaseTargets(): ReleaseTargets {
   return {
     docker: false,
+    dockerContext: ".",
+    dockerImage: "",
     npmTrustedPublisher: false,
     convex: false,
     webhook: false,
@@ -37,9 +41,16 @@ export function defaultReleaseTargets(): ReleaseTargets {
 
 function normalizeReleaseTargets(raw: ParsedProjectConfig): ReleaseTargets {
   const defaults = defaultReleaseTargets();
+  const dockerContextRaw = raw.releaseTargets?.dockerContext ?? defaults.dockerContext;
+  const dockerContext =
+    !dockerContextRaw || dockerContextRaw === "."
+      ? "."
+      : dockerContextRaw.trim().replace(/^\.?\//, "").replace(/\\/g, "/");
 
   return {
     docker: raw.releaseTargets?.docker ?? defaults.docker,
+    dockerContext,
+    dockerImage: raw.releaseTargets?.dockerImage ?? defaults.dockerImage,
     npmTrustedPublisher:
       raw.releaseTargets?.npmTrustedPublisher ?? defaults.npmTrustedPublisher,
     convex: raw.releaseTargets?.convex ?? raw.convexDeploy ?? defaults.convex,

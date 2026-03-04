@@ -9,6 +9,7 @@ import { getGlobalConfig, saveGlobalConfig } from "@lib/config";
 import { generateEncryptionKey } from "@lib/crypto";
 import { UserError } from "@lib/errors";
 import { ensureFileContainsLine } from "@lib/fs";
+import { getRemoteUrl } from "@lib/git";
 import { info, success, warning } from "@lib/output";
 import {
   defaultReleaseTargets,
@@ -33,10 +34,31 @@ interface InitAnswers {
   apiUrl?: string;
   apiKey?: string;
   dockerRelease: boolean;
+  dockerContext?: string;
+  dockerImage?: string;
   npmTrustedPublisher: boolean;
   convexDeploy: boolean;
   webhookTrigger: boolean;
   installPeers?: boolean;
+}
+
+function normalizeDockerContext(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed || trimmed === ".") {
+    return ".";
+  }
+
+  return trimmed.replace(/^\.?\//, "").replace(/\\/g, "/");
+}
+
+function getDefaultDockerImage(): string {
+  try {
+    const remote = getRemoteUrl();
+    return `ghcr.io/${remote.owner.toLowerCase()}/${remote.repo.toLowerCase()}`;
+  } catch {
+    return "";
+  }
 }
 
 function copyTemplate(templateRelativePath: string, targetPath: string): void {
@@ -105,6 +127,7 @@ async function promptForInit(
   missingConfig: { apiUrl: boolean; apiKey: boolean },
   missingPeers: string[],
   releaseTargets: ReleaseTargets,
+  dockerImageDefault: string,
 ): Promise<InitAnswers> {
   const questions = [];
 
@@ -131,6 +154,32 @@ async function promptForInit(
     name: "dockerRelease",
     initial: releaseTargets.docker,
     message: "Enable Docker publish to GHCR on release?",
+  });
+
+  questions.push({
+    type: (previous: boolean) => (previous ? "text" : null),
+    name: "dockerContext",
+    initial: normalizeDockerContext(releaseTargets.dockerContext),
+    message: "Docker build context path (repo-relative):",
+    validate: (value: string) => {
+      const normalized = normalizeDockerContext(value);
+      if (!normalized) return "Docker context path is required.";
+      if (/\s/.test(normalized)) return "Docker context path must not contain spaces.";
+      if (normalized.startsWith("..")) return "Path must stay inside repository.";
+      return true;
+    },
+  });
+
+  questions.push({
+    type: (_previous: string, values: InitAnswers) => (values.dockerRelease ? "text" : null),
+    name: "dockerImage",
+    initial: releaseTargets.dockerImage || dockerImageDefault,
+    message: "Docker image name (e.g. ghcr.io/reals3bi/vaultship):",
+    validate: (value: string) => {
+      if (!value?.trim()) return "Docker image is required.";
+      if (/\s/.test(value)) return "Docker image must not contain spaces.";
+      return true;
+    },
   });
 
   questions.push({
@@ -173,7 +222,11 @@ async function promptForInit(
 function printReleaseTargetSummary(releaseTargets: ReleaseTargets): void {
   info("Release targets:");
   info("- GitHub Release: enabled (always)");
-  info(`- Docker (GHCR): ${releaseTargets.docker ? "enabled" : "disabled"}`);
+  if (releaseTargets.docker) {
+    info(`- Docker (GHCR): enabled (${releaseTargets.dockerImage}, context: ${releaseTargets.dockerContext})`);
+  } else {
+    info("- Docker (GHCR): disabled");
+  }
   info(`- npm (Trusted Publisher): ${releaseTargets.npmTrustedPublisher ? "enabled" : "disabled"}`);
   info(`- Convex deploy: ${releaseTargets.convex ? "enabled" : "disabled"}`);
   info(`- Deployment webhook: ${releaseTargets.webhook ? "enabled" : "disabled"}`);
@@ -181,26 +234,24 @@ function printReleaseTargetSummary(releaseTargets: ReleaseTargets): void {
 
 function printSetupInstructions(releaseTargets: ReleaseTargets): void {
   info("");
-  info("Release setup requirements:");
-  info("- Optional but recommended: GitHub secret VAULTSHIP_RELEASE_TOKEN (PAT with repo write) for reliable tag-push side effects.");
-  info("- Release workflow file: .github/workflows/release.yml");
-  info("- Trigger condition: merge PR from branch release/vX.Y.Z into main");
+  info("Setup tasks:");
+  info("- GitHub Repository Secret: VAULTSHIP_RELEASE_TOKEN (docs/release-setup.md#vaultship_release_token)");
 
   if (releaseTargets.docker) {
-    info("- Docker (GHCR): add a root Dockerfile and set workflow permission to Read and write for Actions.");
+    info("- GitHub Actions Workflow permissions: Read and write (docs/release-setup.md#docker_ghcr)");
   }
 
   if (releaseTargets.npmTrustedPublisher) {
-    info("- npm Trusted Publisher: in npm package settings, add this GitHub repo + workflow '.github/workflows/release.yml'.");
-    info("- npm publish checks tag/version match and runs 'pnpm publish --provenance'.");
+    info("- npm Trusted Publisher: workflow .github/workflows/release.yml (docs/release-setup.md#npm_trusted_publisher)");
   }
 
   if (releaseTargets.convex) {
-    info("- Convex: add GitHub secret CONVEX_DEPLOY_KEY (Settings > Secrets and variables > Actions > Secrets).");
+    info("- GitHub Repository Secret: CONVEX_DEPLOY_KEY (docs/release-setup.md#convex)");
   }
 
   if (releaseTargets.webhook) {
-    info("- Webhook: add GitHub variable DEPLOY_WEBHOOK_URL and optional secret DEPLOY_WEBHOOK_SECRET.");
+    info("- GitHub Repository Variable: DEPLOY_WEBHOOK_URL (docs/release-setup.md#webhook)");
+    info("- Optional GitHub Repository Secret: DEPLOY_WEBHOOK_SECRET (docs/release-setup.md#webhook)");
   }
 
   info("- Re-run 'vaultship init' anytime to change these options.");
@@ -246,6 +297,7 @@ async function runInit(): Promise<void> {
 
   const projectId = existingProjectConfig?.projectId ?? uuidv4();
   const releaseTargetsDefaults = existingProjectConfig?.releaseTargets ?? defaultReleaseTargets();
+  const dockerImageDefault = getDefaultDockerImage();
   const globalConfig = getGlobalConfig();
   const missingPeers = findMissingPeers();
   const answers = await promptForInit(
@@ -255,10 +307,15 @@ async function runInit(): Promise<void> {
     },
     missingPeers,
     releaseTargetsDefaults,
+    dockerImageDefault,
   );
 
   const releaseTargets: ReleaseTargets = {
     docker: answers.dockerRelease,
+    dockerContext: normalizeDockerContext(
+      answers.dockerContext ?? releaseTargetsDefaults.dockerContext,
+    ),
+    dockerImage: ((answers.dockerImage ?? releaseTargetsDefaults.dockerImage) || dockerImageDefault).trim(),
     npmTrustedPublisher: answers.npmTrustedPublisher,
     convex: answers.convexDeploy,
     webhook: answers.webhookTrigger,
