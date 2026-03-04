@@ -1,5 +1,9 @@
 # Changelog
 
+## <small>1.1.22 (2026-03-04)</small>
+
+* fix: ymls 2209357
+
 ## <small>1.1.21 (2026-03-04)</small>
 
 ## <small>1.1.20 (2026-03-04)</small>
