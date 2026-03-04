@@ -7,6 +7,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v1.2.3)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -35,9 +43,25 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid tag format: $TAG (expected vX.Y.Z)"
+            exit 1
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Verify tag matches package version
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${{ steps.tag.outputs.tag }}"
           VER="${TAG#v}"
           PKG=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
           if [ "$VER" != "$PKG" ]; then

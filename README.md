@@ -105,6 +105,7 @@ docker run -p 8090:8090 ghcr.io/<owner>/vaultship/server:latest
 `vaultship init` installs `.github/workflows/release.yml` for application repositories.
 
 - The release branch must be named `release/vX.Y.Z` and produces tag `vX.Y.Z`.
+- To trigger downstream workflows on tag push (e.g. npm publish), set repository secret `VAULTSHIP_RELEASE_TOKEN` (PAT with repo write access). Without it, the workflow falls back to `GITHUB_TOKEN` and tag-triggered workflows may be skipped.
 - Docker build/push in that workflow is **opt-in** via repository variable `VAULTSHIP_DOCKER_RELEASE=true`.
 - If `VAULTSHIP_DOCKER_RELEASE` is not enabled (or no root `Dockerfile` exists), Docker steps are skipped.
 - Non-Docker repositories can use the release workflow without modification.
@@ -126,5 +127,6 @@ To release a new version:
    ```
 
 3. The workflow will build, verify the tag matches `package.json` version, and run `pnpm publish`.
+   If a tag-triggered run was missed, start `.github/workflows/npm-publish.yml` via **Actions -> npm Publish -> Run workflow** and pass `tag=vX.Y.Z`.
 
 The package is published as `vaultship`, so consumers can install it directly without a scoped `/cli` suffix.
