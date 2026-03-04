@@ -1,5 +1,7 @@
 # Changelog
 
+## <small>1.1.21 (2026-03-04)</small>
+
 ## <small>1.1.20 (2026-03-04)</small>
 
 * fix: pnpm on release file f5b301a
