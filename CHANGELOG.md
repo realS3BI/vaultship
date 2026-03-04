@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 (2026-03-04)
+
+* chore(release): v1.1.22 6dc5191
+* fix: ymls 2209357
+
 ## <small>1.1.22 (2026-03-04)</small>
 
 * fix: ymls 2209357
