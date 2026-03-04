@@ -1,6 +1,6 @@
 {
   "name": "vaultship",
-  "version": "1.1.12",
+  "version": "1.1.13",
   "description": "Release automation and encrypted environment synchronization for GitHub projects.",
   "repository": {
     "type": "git",
