@@ -1,6 +1,6 @@
 {
   "name": "vaultship",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Release automation and encrypted environment synchronization for GitHub projects.",
   "type": "module",
   "bin": {
