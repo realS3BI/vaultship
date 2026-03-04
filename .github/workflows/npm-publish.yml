@@ -33,7 +33,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
@@ -73,5 +73,5 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish to npm
-        run: pnpm publish --no-git-checks --provenance
+        run: npm publish --provenance --access public
         # Auth via OIDC (Trusted Publishers); do not set NODE_AUTH_TOKEN

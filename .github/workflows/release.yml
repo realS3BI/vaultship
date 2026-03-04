@@ -110,7 +110,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
@@ -127,7 +127,7 @@ jobs:
             exit 1
           fi
 
-          pnpm publish --no-git-checks --provenance
+          pnpm publish --no-git-checks --provenance --access public
 
       - name: Trigger Deployment Webhook
         env:
