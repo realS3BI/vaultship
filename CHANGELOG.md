@@ -1,5 +1,11 @@
 # Changelog
 
+## <small>1.1.20 (2026-03-04)</small>
+
+* fix: pnpm on release file f5b301a
+* fix: release.yml 2761e38
+* chore(release): v1.1.19 8773003
+
 ## <small>1.1.19 (2026-03-04)</small>
 
 * fix: pnpm on release file f5b301a
