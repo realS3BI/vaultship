@@ -1,5 +1,9 @@
 # Changelog
 
+## <small>1.1.19 (2026-03-04)</small>
+
+* fix: pnpm on release file f5b301a
+
 ## <small>1.1.18 (2026-03-04)</small>
 
 * fix: frozen-lockfile 9b30ae3
