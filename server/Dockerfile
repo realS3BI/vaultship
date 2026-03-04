@@ -1,15 +1,23 @@
-FROM ghcr.io/muchobien/pocketbase:latest
+FROM node:22-bookworm-slim
 
-# Server bind port (use PORT env at runtime to override)
+WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY server.js /app/server.js
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENV NODE_ENV=production
 ENV PORT=8090
-# Admin user (set PB_ADMIN_EMAIL + PB_ADMIN_PASSWORD to create/update on startup)
-# ENV PB_ADMIN_EMAIL=
-# ENV PB_ADMIN_PASSWORD=
-
-COPY pb_migrations /pb/pb_migrations
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+ENV DB_PATH=/data/vaultship.db
 
 EXPOSE 8090
+VOLUME ["/data"]
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]

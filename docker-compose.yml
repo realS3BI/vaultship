@@ -1,5 +1,5 @@
-# Vaultship PocketBase server – URL/port and admin via env
-# Optional: create .env with PORT, PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD, PB_URL (see README)
+# Vaultship server (SQLite + API key)
+# Optional: create .env with PORT, VAULTSHIP_API_KEY, DB_PATH (see README)
 
 services:
   server:
@@ -10,10 +10,11 @@ services:
       - "${PORT:-8090}:${PORT:-8090}"
     environment:
       PORT: ${PORT:-8090}
-      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-}
-      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-}
+      DB_PATH: ${DB_PATH:-/data/vaultship.db}
+      VAULTSHIP_API_KEY: ${VAULTSHIP_API_KEY:-}
+      PRINT_API_KEY: ${PRINT_API_KEY:-false}
     volumes:
-      - pb_data:/pb/pb_data
+      - server_data:/data
 
 volumes:
-  pb_data:
+  server_data:

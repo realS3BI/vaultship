@@ -6,7 +6,7 @@ import { getApiKey, getApiUrl, getEncryptionKey } from "@lib/config";
 import { encrypt } from "@lib/crypto";
 import { UserError } from "@lib/errors";
 import { success } from "@lib/output";
-import { createPocketBaseClient } from "@lib/pocketbase-client";
+import { createEnvSyncClient } from "@lib/env-sync-client";
 import { getProjectConfig } from "@lib/project-config";
 import { wrapCommand } from "../command-utils";
 
@@ -23,10 +23,10 @@ async function runEnvPush(): Promise<void> {
   const encryptionKey = getEncryptionKey(projectId);
   const content = fs.readFileSync(envPath, "utf8");
   const encryptedPayload = encrypt(content, encryptionKey);
-  const spinner = ora("Pushing environment variables to PocketBase").start();
+  const spinner = ora("Pushing environment variables to Vaultship server").start();
 
   try {
-    const client = createPocketBaseClient(apiUrl, apiKey);
+    const client = createEnvSyncClient(apiUrl, apiKey);
     await client.pushEnv(projectId, encryptedPayload);
     spinner.succeed("Environment variables pushed");
   } catch (error) {
@@ -39,6 +39,6 @@ async function runEnvPush(): Promise<void> {
 
 export function createEnvPushCommand(): Command {
   return new Command("push")
-    .description("Push .env to PocketBase")
+    .description("Push .env to Vaultship server")
     .action(wrapCommand(runEnvPush));
 }

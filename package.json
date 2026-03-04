@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "generate-api-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

@@ -3,7 +3,7 @@
 `vaultship` provides two workflows:
 
 - release automation for version bumps, changelog generation, PR creation, Docker publishing, and deployment hooks
-- encrypted `.env` synchronization backed by PocketBase
+- encrypted `.env` synchronization backed by a lightweight SQLite server
 
 ## Requirements
 
@@ -37,9 +37,9 @@ Global config is stored at `~/.vaultship/config.json`.
 
 Project config is stored at `.vaultshiprc.json`.
 
-## PocketBase server (env sync)
+## Vaultship server (env sync)
 
-For `vaultship env push` / `env pull` you need a PocketBase instance with the vaultship migrations (e.g. the official server image or `docker-compose`).
+For `vaultship env push` / `env pull` you need a Vaultship server instance (e.g. the official server image or `docker-compose`).
 
 ### Run with docker-compose
 
@@ -47,7 +47,7 @@ From the repo root:
 
 ```bash
 cp .env.example .env
-# Edit .env: set PORT, PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD
+# Edit .env: set PORT and VAULTSHIP_API_KEY
 docker compose up -d
 ```
 
@@ -56,16 +56,25 @@ docker compose up -d
 | Variable | Description |
 |----------|-------------|
 | `PORT` | Port the server listens on (default: `8090`). Use this to choose where the server runs (e.g. `9090`). |
-| `PB_ADMIN_EMAIL` | Admin email. If set together with `PB_ADMIN_PASSWORD`, the server creates/updates this admin on every startup. |
-| `PB_ADMIN_PASSWORD` | Admin password (only used when `PB_ADMIN_EMAIL` is also set). |
-| `PB_URL` | Optional. Base URL where you access PocketBase (for your own reference). vaultship uses `apiUrl` from `vaultship config`. |
+| `VAULTSHIP_API_KEY` | API key used for request authentication. Recommended to set explicitly in `.env`. |
+| `DB_PATH` | Optional. SQLite DB path inside the container (default: `/data/vaultship.db`). |
+| `PRINT_API_KEY` | Optional (`true`/`false`). If `true`, prints the active API key at startup. |
 
 **URL and API key**
 
-- **apiUrl**: Set where your PocketBase is reachable, e.g. `http://localhost:8090` or `https://pb.yourdomain.com`. Configure with `vaultship config set apiUrl <url>`.
-- **apiKey**: After the first start, open the Admin UI (e.g. `http://localhost:8090`), log in with `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`, create an API token, then run `vaultship config set apiKey <token>`.
+- **apiUrl**: Set where your Vaultship server is reachable, e.g. `http://localhost:8090` or `https://vaultship.yourdomain.com`. Configure with `vaultship config set apiUrl <url>`.
+- **apiKey**: Set the same key as `VAULTSHIP_API_KEY` via `vaultship config set apiKey <key>`. If `VAULTSHIP_API_KEY` is not set, the container auto-generates one and stores it in `/data/api-key`.
 
-The server runs migrations automatically on startup and needs no manual DB setup.
+The server creates the SQLite table automatically on startup and needs no manual DB setup.
+
+### Migration from PocketBase
+
+1. Start the new Vaultship server (`docker compose up -d`) and set `VAULTSHIP_API_KEY`.
+2. For each project, pull once from the old PocketBase backend (`vaultship env pull` with old `apiUrl`/`apiKey`).
+3. Switch config to the new server:
+   - `vaultship config set apiUrl <new-server-url>`
+   - `vaultship config set apiKey <VAULTSHIP_API_KEY>`
+4. Push to the new backend: `vaultship env push`
 
 ## Development
 
@@ -78,10 +87,9 @@ pnpm build
 
 ### Docker image (GHCR)
 
-The PocketBase server image is built and pushed to [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) automatically:
+The Vaultship server image is built and pushed to [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) automatically:
 
-- **On push to `main`**: image tagged as `ghcr.io/<owner>/vaultship/server:latest`
-- **On version tag** (e.g. `1.0.0` or `v1.0.0`): image tagged with that version and as `latest`
+- **On version tag** (e.g. `1.0.0` or `v1.0.0`): image tagged with that version, `<major>.<minor>`, and `latest`
 
 No secrets required; the workflow uses `GITHUB_TOKEN`. Make the image public under repo **Settings → Packages → Package visibility** if needed.
 

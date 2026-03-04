@@ -100,7 +100,7 @@ async function promptForInit(
     questions.push({
       type: "text" as const,
       name: "apiUrl",
-      message: "Enter PocketBase API URL:",
+      message: "Enter Vaultship server URL:",
       validate: (value: string) => (value ? true : "API URL is required."),
     });
   }
@@ -109,7 +109,7 @@ async function promptForInit(
     questions.push({
       type: "password" as const,
       name: "apiKey",
-      message: "Enter PocketBase API Key:",
+      message: "Enter Vaultship API key:",
       validate: (value: string) => (value ? true : "API key is required."),
     });
   }

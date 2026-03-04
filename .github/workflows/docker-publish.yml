@@ -1,4 +1,4 @@
-# Build and push the vaultship server (PocketBase + migrations) to GHCR.
+# Build and push the Vaultship server image to GHCR.
 # Runs only on version tags (e.g. v1.0.0). Tags: latest, 1.0.0, 1.0.
 
 name: Docker (GHCR)

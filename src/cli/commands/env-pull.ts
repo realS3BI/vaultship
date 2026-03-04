@@ -7,7 +7,7 @@ import { getApiKey, getApiUrl, getEncryptionKey } from "@lib/config";
 import { decrypt } from "@lib/crypto";
 import { UserError } from "@lib/errors";
 import { success } from "@lib/output";
-import { createPocketBaseClient } from "@lib/pocketbase-client";
+import { createEnvSyncClient } from "@lib/env-sync-client";
 import { getProjectConfig } from "@lib/project-config";
 import { wrapCommand } from "../command-utils";
 
@@ -38,10 +38,10 @@ async function runEnvPull(): Promise<void> {
     }
   }
 
-  const spinner = ora("Pulling environment variables from PocketBase").start();
+  const spinner = ora("Pulling environment variables from Vaultship server").start();
 
   try {
-    const client = createPocketBaseClient(apiUrl, apiKey);
+    const client = createEnvSyncClient(apiUrl, apiKey);
     const encryptedPayload = await client.pullEnv(projectId);
 
     if (!encryptedPayload) {
@@ -61,6 +61,6 @@ async function runEnvPull(): Promise<void> {
 
 export function createEnvPullCommand(): Command {
   return new Command("pull")
-    .description("Pull .env from PocketBase")
+    .description("Pull .env from Vaultship server")
     .action(wrapCommand(runEnvPull));
 }
