@@ -77,7 +77,7 @@ function getNpmTrustedPublisherSteps(): string {
           version: 10
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Publish package to npm
         run: |
