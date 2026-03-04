@@ -171,7 +171,8 @@ async function promptForInit(
   });
 
   questions.push({
-    type: (_previous: string, values: InitAnswers) => (values.dockerRelease ? "text" : null),
+    type: (_prev: unknown, values: Record<string, unknown>) =>
+      (values as unknown as InitAnswers).dockerRelease ? "text" : null,
     name: "dockerImage",
     initial: releaseTargets.dockerImage || dockerImageDefault,
     message: "Docker image name (e.g. ghcr.io/reals3bi/vaultship):",
