@@ -40,7 +40,7 @@ function runUpdate(): void {
   getProjectConfig();
 
   copyTemplate("release.yml", path.join(process.cwd(), ".github", "workflows", "release.yml"));
-  copyTemplate("commitlint.config", path.join(process.cwd(), "commitlint.config"));
+  copyTemplate("commitlint.config.js", path.join(process.cwd(), "commitlint.config.js"));
   copyTemplate("husky/commit-msg", path.join(process.cwd(), ".husky", "commit-msg"));
 
   ensureScripts();

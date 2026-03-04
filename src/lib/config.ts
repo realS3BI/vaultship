@@ -56,11 +56,23 @@ export function saveGlobalConfig(config: GlobalConfig): void {
   }
 }
 
-export function getApiKey(): string {
+function readApiKeyFromEnvVaultship(cwd: string): string | undefined {
+  const envVaultshipPath = path.join(cwd, ".env.vaultship");
+  if (!fs.existsSync(envVaultshipPath)) return undefined;
+  const content = fs.readFileSync(envVaultshipPath, "utf8");
+  const match = content.match(/^\s*VAULTSHIP_API_KEY\s*=\s*(.+)\s*$/m);
+  return match ? match[1].trim() : undefined;
+}
+
+export function getApiKey(cwd?: string): string {
+  const workDir = cwd ?? process.cwd();
+  const fromFile = readApiKeyFromEnvVaultship(workDir);
+  if (fromFile) return fromFile;
+
   const apiKey = getGlobalConfig().apiKey;
 
   if (!apiKey) {
-    throw new UserError("No API key configured. Run: vaultship config set apiKey <key>");
+    throw new UserError("No API key configured. Run: vaultship config set apiKey <key> or add VAULTSHIP_API_KEY to .env.vaultship");
   }
 
   return apiKey;

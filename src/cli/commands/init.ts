@@ -189,7 +189,7 @@ async function runInit(): Promise<void> {
   });
 
   copyTemplate("release.yml", path.join(process.cwd(), ".github", "workflows", "release.yml"));
-  copyTemplate("commitlint.config", path.join(process.cwd(), "commitlint.config"));
+  copyTemplate("commitlint.config.js", path.join(process.cwd(), "commitlint.config.js"));
 
   if (missingPeers.length > 0) {
     if (answers.installPeers) {
@@ -218,6 +218,16 @@ async function runInit(): Promise<void> {
   ensureFileContainsLine(path.join(process.cwd(), ".gitignore"), ".env.vaultship");
   updatePackageScripts();
 
+  const envVaultshipPath = path.join(process.cwd(), ".env.vaultship");
+  const apiKeyToWrite = globalConfig.apiKey ?? "";
+  if (apiKeyToWrite) {
+    fs.writeFileSync(
+      envVaultshipPath,
+      `# Vaultship API key (do not commit)\nVAULTSHIP_API_KEY=${apiKeyToWrite}\n`,
+      "utf8",
+    );
+  }
+
   success("vaultship initialized!");
   info(`Project ID: ${projectId}`);
   info(`Encryption Key: ${encryptionKey}`);
@@ -225,8 +235,11 @@ async function runInit(): Promise<void> {
   info("Files created:");
   info("- .vaultshiprc.json");
   info("- .github/workflows/release.yml");
-  info("- commitlint.config");
+  info("- commitlint.config.js");
   info("- .husky/commit-msg");
+  if (apiKeyToWrite) {
+    info("- .env.vaultship (VAULTSHIP_API_KEY)");
+  }
 }
 
 export function createInitCommand(): Command {

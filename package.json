@@ -18,7 +18,13 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "generate-api-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "prepare": "husky",
+    "release": "vaultship release",
+    "release:minor": "vaultship release --minor",
+    "release:major": "vaultship release --major",
+    "env:push": "vaultship env push",
+    "env:pull": "vaultship env pull"
   },
   "dependencies": {
     "chalk": "^5.3.0",
@@ -32,10 +38,14 @@
     "yaml": "^2.6.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
     "@types/node": "^25.3.3",
     "@types/prompts": "^2.4.9",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vaultship": "file:../vaultship/dist/cli/index.js"
   },
   "engines": {
     "node": ">=20"
