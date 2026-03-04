@@ -10,7 +10,15 @@ import { generateEncryptionKey } from "@lib/crypto";
 import { UserError } from "@lib/errors";
 import { ensureFileContainsLine } from "@lib/fs";
 import { info, success, warning } from "@lib/output";
-import { getProjectConfigPath, saveProjectConfig } from "@lib/project-config";
+import {
+  defaultReleaseTargets,
+  getProjectConfig,
+  getProjectConfigPath,
+  ProjectConfig,
+  ReleaseTargets,
+  saveProjectConfig,
+} from "@lib/project-config";
+import { writeReleaseWorkflow } from "@lib/release-workflow";
 import { getTemplatePath } from "@lib/runtime";
 import { getPackageJson, savePackageJson } from "@lib/version";
 import { wrapCommand } from "../command-utils";
@@ -24,8 +32,11 @@ const REQUIRED_PEERS = [
 interface InitAnswers {
   apiUrl?: string;
   apiKey?: string;
+  dockerRelease: boolean;
+  npmTrustedPublisher: boolean;
   convexDeploy: boolean;
-  installPeers: boolean;
+  webhookTrigger: boolean;
+  installPeers?: boolean;
 }
 
 function copyTemplate(templateRelativePath: string, targetPath: string): void {
@@ -93,6 +104,7 @@ function updatePackageScripts(): void {
 async function promptForInit(
   missingConfig: { apiUrl: boolean; apiKey: boolean },
   missingPeers: string[],
+  releaseTargets: ReleaseTargets,
 ): Promise<InitAnswers> {
   const questions = [];
 
@@ -116,9 +128,30 @@ async function promptForInit(
 
   questions.push({
     type: "confirm" as const,
+    name: "dockerRelease",
+    initial: releaseTargets.docker,
+    message: "Enable Docker publish to GHCR on release?",
+  });
+
+  questions.push({
+    type: "confirm" as const,
+    name: "npmTrustedPublisher",
+    initial: releaseTargets.npmTrustedPublisher,
+    message: "Enable npm publish via Trusted Publisher on release?",
+  });
+
+  questions.push({
+    type: "confirm" as const,
     name: "convexDeploy",
-    initial: false,
-    message: "Enable Convex deploy?",
+    initial: releaseTargets.convex,
+    message: "Enable Convex deploy on release?",
+  });
+
+  questions.push({
+    type: "confirm" as const,
+    name: "webhookTrigger",
+    initial: releaseTargets.webhook,
+    message: "Enable deployment webhook trigger on release?",
   });
 
   if (missingPeers.length > 0) {
@@ -137,29 +170,82 @@ async function promptForInit(
   }) as Promise<InitAnswers>;
 }
 
-async function runInit(): Promise<void> {
-  const projectConfigPath = getProjectConfigPath();
+function printReleaseTargetSummary(releaseTargets: ReleaseTargets): void {
+  info("Release targets:");
+  info("- GitHub Release: enabled (always)");
+  info(`- Docker (GHCR): ${releaseTargets.docker ? "enabled" : "disabled"}`);
+  info(`- npm (Trusted Publisher): ${releaseTargets.npmTrustedPublisher ? "enabled" : "disabled"}`);
+  info(`- Convex deploy: ${releaseTargets.convex ? "enabled" : "disabled"}`);
+  info(`- Deployment webhook: ${releaseTargets.webhook ? "enabled" : "disabled"}`);
+}
 
-  if (fs.existsSync(projectConfigPath)) {
-    const response = await prompts(
-      {
-        type: "confirm",
-        name: "reinitialize",
-        message: "Project already initialized. Reinitialize?",
-        initial: false,
-      },
-      {
-        onCancel: () => {
-          throw new UserError("Initialization cancelled.");
-        },
-      },
-    );
+function printSetupInstructions(releaseTargets: ReleaseTargets): void {
+  info("");
+  info("Release setup requirements:");
+  info("- Optional but recommended: GitHub secret VAULTSHIP_RELEASE_TOKEN (PAT with repo write) for reliable tag-push side effects.");
+  info("- Release workflow file: .github/workflows/release.yml");
+  info("- Trigger condition: merge PR from branch release/vX.Y.Z into main");
 
-    if (!response.reinitialize) {
-      throw new UserError("Initialization aborted.");
-    }
+  if (releaseTargets.docker) {
+    info("- Docker (GHCR): add a root Dockerfile and set workflow permission to Read and write for Actions.");
   }
 
+  if (releaseTargets.npmTrustedPublisher) {
+    info("- npm Trusted Publisher: in npm package settings, add this GitHub repo + workflow '.github/workflows/release.yml'.");
+    info("- npm publish checks tag/version match and runs 'pnpm publish --provenance'.");
+  }
+
+  if (releaseTargets.convex) {
+    info("- Convex: add GitHub secret CONVEX_DEPLOY_KEY (Settings > Secrets and variables > Actions > Secrets).");
+  }
+
+  if (releaseTargets.webhook) {
+    info("- Webhook: add GitHub variable DEPLOY_WEBHOOK_URL and optional secret DEPLOY_WEBHOOK_SECRET.");
+  }
+
+  info("- Re-run 'vaultship init' anytime to change these options.");
+}
+
+function loadExistingProjectConfig(projectConfigPath: string): ProjectConfig | undefined {
+  if (!fs.existsSync(projectConfigPath)) {
+    return undefined;
+  }
+
+  return getProjectConfig();
+}
+
+async function confirmReinitialize(projectConfigExists: boolean): Promise<void> {
+  if (!projectConfigExists) {
+    return;
+  }
+
+  const response = await prompts(
+    {
+      type: "confirm",
+      name: "reinitialize",
+      message: "Project already initialized. Update configuration?",
+      initial: true,
+    },
+    {
+      onCancel: () => {
+        throw new UserError("Initialization cancelled.");
+      },
+    },
+  );
+
+  if (!response.reinitialize) {
+    throw new UserError("Initialization aborted.");
+  }
+}
+
+async function runInit(): Promise<void> {
+  const projectConfigPath = getProjectConfigPath();
+  const existingProjectConfig = loadExistingProjectConfig(projectConfigPath);
+
+  await confirmReinitialize(Boolean(existingProjectConfig));
+
+  const projectId = existingProjectConfig?.projectId ?? uuidv4();
+  const releaseTargetsDefaults = existingProjectConfig?.releaseTargets ?? defaultReleaseTargets();
   const globalConfig = getGlobalConfig();
   const missingPeers = findMissingPeers();
   const answers = await promptForInit(
@@ -168,9 +254,15 @@ async function runInit(): Promise<void> {
       apiKey: !globalConfig.apiKey,
     },
     missingPeers,
+    releaseTargetsDefaults,
   );
-  const projectId = uuidv4();
-  const encryptionKey = generateEncryptionKey();
+
+  const releaseTargets: ReleaseTargets = {
+    docker: answers.dockerRelease,
+    npmTrustedPublisher: answers.npmTrustedPublisher,
+    convex: answers.convexDeploy,
+    webhook: answers.webhookTrigger,
+  };
 
   if (!globalConfig.apiUrl && answers.apiUrl) {
     globalConfig.apiUrl = answers.apiUrl;
@@ -180,15 +272,23 @@ async function runInit(): Promise<void> {
     globalConfig.apiKey = answers.apiKey;
   }
 
-  globalConfig.projects[projectId] = { encryptionKey };
+  let encryptionKey = globalConfig.projects[projectId]?.encryptionKey;
+  let createdEncryptionKey = false;
+
+  if (!encryptionKey) {
+    encryptionKey = generateEncryptionKey();
+    globalConfig.projects[projectId] = { encryptionKey };
+    createdEncryptionKey = true;
+  }
+
   saveGlobalConfig(globalConfig);
 
   saveProjectConfig({
     projectId,
-    convexDeploy: answers.convexDeploy,
+    releaseTargets,
   });
 
-  copyTemplate("release.yml", path.join(process.cwd(), ".github", "workflows", "release.yml"));
+  writeReleaseWorkflow(releaseTargets);
   copyTemplate("commitlint.config.js", path.join(process.cwd(), "commitlint.config.js"));
 
   if (missingPeers.length > 0) {
@@ -228,11 +328,20 @@ async function runInit(): Promise<void> {
     );
   }
 
-  success("vaultship initialized!");
+  success(existingProjectConfig ? "vaultship configuration updated!" : "vaultship initialized!");
   info(`Project ID: ${projectId}`);
-  info(`Encryption Key: ${encryptionKey}`);
-  warning("Save this encryption key in KeePass. It cannot be recovered.");
-  info("Files created:");
+  if (createdEncryptionKey) {
+    info(`Encryption Key: ${encryptionKey}`);
+    warning("Save this encryption key in KeePass. It cannot be recovered.");
+  } else {
+    info("Encryption key: reused existing value from global config.");
+  }
+
+  printReleaseTargetSummary(releaseTargets);
+  printSetupInstructions(releaseTargets);
+
+  info("");
+  info("Files written:");
   info("- .vaultshiprc.json");
   info("- .github/workflows/release.yml");
   info("- commitlint.config.js");

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { getProjectConfig } from "@lib/project-config";
+import { writeReleaseWorkflow } from "@lib/release-workflow";
 import { warning, success } from "@lib/output";
 import { getTemplatePath } from "@lib/runtime";
 import { getPackageJson, savePackageJson } from "@lib/version";
@@ -37,9 +38,9 @@ function ensureScripts(): void {
 }
 
 function runUpdate(): void {
-  getProjectConfig();
+  const projectConfig = getProjectConfig();
 
-  copyTemplate("release.yml", path.join(process.cwd(), ".github", "workflows", "release.yml"));
+  writeReleaseWorkflow(projectConfig.releaseTargets);
   copyTemplate("commitlint.config.js", path.join(process.cwd(), "commitlint.config.js"));
   copyTemplate("husky/commit-msg", path.join(process.cwd(), ".husky", "commit-msg"));
 

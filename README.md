@@ -106,27 +106,21 @@ docker run -p 8090:8090 ghcr.io/<owner>/vaultship/server:latest
 
 - The release branch must be named `release/vX.Y.Z` and produces tag `vX.Y.Z`.
 - To trigger downstream workflows on tag push (e.g. npm publish), set repository secret `VAULTSHIP_RELEASE_TOKEN` (PAT with repo write access). Without it, the workflow falls back to `GITHUB_TOKEN` and tag-triggered workflows may be skipped.
-- Docker build/push in that workflow is **opt-in** via repository variable `VAULTSHIP_DOCKER_RELEASE=true`.
-- If `VAULTSHIP_DOCKER_RELEASE` is not enabled (or no root `Dockerfile` exists), Docker steps are skipped.
-- Non-Docker repositories can use the release workflow without modification.
+- GitHub release creation is always enabled.
+- Optional deploy targets are configured interactively during `vaultship init` and stored in `.vaultshiprc.json`:
+  - Docker publish to GHCR
+  - npm publish via Trusted Publisher (OIDC)
+  - Convex deploy
+  - Webhook trigger
+- Re-running `vaultship init` reopens those settings with existing values as defaults and regenerates the workflow.
 
 ### npm package
 
-`vaultship` is published to npm when a **version tag** (`vX.Y.Z`) is pushed, using [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC). No long-lived tokens are required.
+When npm publishing is enabled in `vaultship init`, the release workflow publishes via [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC), with no npm token required.
 
-**One-time setup:** On [npm](https://www.npmjs.com/package/vaultship/access), add a Trusted Publisher with this repo and workflow filename `npm-publish.yml` (the workflow lives at `.github/workflows/npm-publish.yml`). Once configured, pushes of version tags trigger the workflow and npm accepts the publish via OIDC.
+One-time setup on npm package access settings:
 
-To release a new version:
+1. Add a Trusted Publisher for this GitHub repository.
+2. Use workflow filename `release.yml` (path: `.github/workflows/release.yml`).
 
-1. Bump version (e.g. `pnpm version minor` or update `package.json` and commit).
-2. Push a tag that matches the new version:
-
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-3. The workflow will build, verify the tag matches `package.json` version, and run `pnpm publish`.
-   If a tag-triggered run was missed, start `.github/workflows/npm-publish.yml` via **Actions -> npm Publish -> Run workflow** and pass `tag=vX.Y.Z`.
-
-The package is published as `vaultship`, so consumers can install it directly without a scoped `/cli` suffix.
+On each merged release PR (`release/vX.Y.Z`), vaultship checks that the tag and `package.json` version match and runs `pnpm publish --provenance`.
