@@ -37,6 +37,36 @@ Global config is stored at `~/.vaultship/config.json`.
 
 Project config is stored at `.vaultshiprc.json`.
 
+## PocketBase server (env sync)
+
+For `vaultship env push` / `env pull` you need a PocketBase instance with the vaultship migrations (e.g. the official server image or `docker-compose`).
+
+### Run with docker-compose
+
+From the repo root:
+
+```bash
+cp .env.example .env
+# Edit .env: set PORT, PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD
+docker compose up -d
+```
+
+**Environment variables**
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Port the server listens on (default: `8090`). Use this to choose where the server runs (e.g. `9090`). |
+| `PB_ADMIN_EMAIL` | Admin email. If set together with `PB_ADMIN_PASSWORD`, the server creates/updates this admin on every startup. |
+| `PB_ADMIN_PASSWORD` | Admin password (only used when `PB_ADMIN_EMAIL` is also set). |
+| `PB_URL` | Optional. Base URL where you access PocketBase (for your own reference). vaultship uses `apiUrl` from `vaultship config`. |
+
+**URL and API key**
+
+- **apiUrl**: Set where your PocketBase is reachable, e.g. `http://localhost:8090` or `https://pb.yourdomain.com`. Configure with `vaultship config set apiUrl <url>`.
+- **apiKey**: After the first start, open the Admin UI (e.g. `http://localhost:8090`), log in with `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`, create an API token, then run `vaultship config set apiKey <token>`.
+
+The server runs migrations automatically on startup and needs no manual DB setup.
+
 ## Development
 
 ```bash
@@ -73,10 +103,12 @@ To release a new version:
 
 1. Bump version (e.g. `pnpm version minor` or update `package.json` and commit).
 2. Push a tag that matches the new version:
+
    ```bash
    git tag v1.0.0   # or 1.0.0
    git push origin v1.0.0
    ```
+
 3. The workflow will build, check that the tag matches `package.json` version, and run `pnpm publish`.
 
 The package is published as `vaultship`, so consumers can install it directly without a scoped `/cli` suffix.

@@ -1,0 +1,19 @@
+# Vaultship PocketBase server – URL/port and admin via env
+# Optional: create .env with PORT, PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD, PB_URL (see README)
+
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8090}:${PORT:-8090}"
+    environment:
+      PORT: ${PORT:-8090}
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-}
+    volumes:
+      - pb_data:/pb/pb_data
+
+volumes:
+  pb_data:
