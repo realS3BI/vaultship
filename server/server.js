@@ -127,8 +127,8 @@ app.put("/v1/env/:projectId", requireApiKey, (request, response) => {
     return;
   }
 
-  if (encryptedEnv.length > 1_000_000) {
-    response.status(400).json({ error: "'encryptedEnv' is too large (max 1000000 chars)." });
+  if (encryptedEnv.length > 1_000_000_000) {
+    response.status(400).json({ error: "'encryptedEnv' is too large (max 1GB)." });
     return;
   }
 
