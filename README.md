@@ -94,10 +94,9 @@ docker run -p 8090:8090 ghcr.io/<owner>/vaultship/server:latest
 
 ### npm package
 
-`vaultship` is published to npm when a **version tag** is pushed. Prerequisites:
+`vaultship` is published to npm when a **version tag** is pushed, using [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers) (OIDC). No long-lived tokens are required.
 
-1. Create an [npm access token](https://www.npmjs.com/settings/~/tokens) (Automation or Publish).
-2. Add it as a repository secret: **Settings → Secrets and variables → Actions → New repository secret** → name: `NPM_TOKEN`, value: your token.
+**One-time setup:** On [npm](https://www.npmjs.com/package/vaultship/access), add a Trusted Publisher with this repo and workflow filename `npm-publish.yml` (the workflow lives at `.github/workflows/npm-publish.yml`). Once configured, pushes of version tags trigger the workflow and npm accepts the publish via OIDC.
 
 To release a new version:
 
@@ -109,6 +108,6 @@ To release a new version:
    git push origin v1.0.0
    ```
 
-3. The workflow will build, check that the tag matches `package.json` version, and run `pnpm publish`.
+3. The workflow will build, verify the tag matches `package.json` version, and run `pnpm publish`.
 
 The package is published as `vaultship`, so consumers can install it directly without a scoped `/cli` suffix.
