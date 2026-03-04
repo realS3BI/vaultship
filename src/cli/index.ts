@@ -1,5 +1,25 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Command } from "commander";
 import { createConfigCommand } from "./commands/config";
+
+// Load .env so GITHUB_TOKEN etc. are available when running release (and other commands)
+const envPath = path.join(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  const content = fs.readFileSync(envPath, "utf8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value.replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
 import { createEnvPullCommand } from "./commands/env-pull";
 import { createEnvPushCommand } from "./commands/env-push";
 import { createInitCommand } from "./commands/init";
