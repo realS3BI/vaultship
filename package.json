@@ -45,7 +45,7 @@
     "@types/prompts": "^2.4.9",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3",
-    "vaultship": "file:../vaultship/dist/cli/index.js"
+    "vaultship": "1.1.4"
   },
   "engines": {
     "node": ">=20"
